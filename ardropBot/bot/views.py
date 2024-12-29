@@ -35,7 +35,7 @@ async def show_menu(update, context):
     
     reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=False, resize_keyboard=True)
 
-    await update.message.reply_text("", reply_markup=reply_markup)
+    await update.message.reply_text("Welcome! Please choose an option from the menu below:", reply_markup=reply_markup)
 
 # Telegram bot functions
 async def start(update, context):
@@ -45,10 +45,13 @@ async def start(update, context):
     last_name = update.message.from_user.last_name
     username = update.message.from_user.username
 
+    # Get invite code from the start parameters (if provided)
+    args = context.args  # Input arguments from the start link
+    invite_code = args[0] if args else None
+
     # Database connection
     session = Session()
-
-    # Get or create the user
+    # Create or retrieve the user
     user, created = User.get_or_create(
         session=session,
         telegram_id=telegram_id,
@@ -59,21 +62,40 @@ async def start(update, context):
             "invite_code": str(uuid.uuid4())[:6]  # Generate a new invite code
         }
     )
-
     # Generate or update the token
     token, created = Token.get_or_create(
         session=session,
         user_id=user.id,
         defaults={
             "token": str(uuid.uuid4())[:10],
-            "expires_at": datetime.now() + timedelta(minutes=2)
+            "expires_at": datetime.now() + timedelta(minutes=2),
+            'is_used': False, 
         }
     )
+    
+    # If invite code exists and user does not already have an inviter
+    if invite_code and user.inviter_id is None:
+        inviter = session.query(User).filter_by(invite_code=invite_code).first()
+        if inviter:
+            user.inviter_id = inviter.id  # Set the inviter
+            session.commit()
 
+            await update.message.reply_text(
+                f"Welcome {user.first_name}! You joined through {inviter.first_name}'s invite link."
+            )
+        else:
+            await update.message.reply_text("Invalid invite code.")
+    elif created:
+        await update.message.reply_text(
+            f"Welcome {user.first_name}! Your invite code is {user.invite_code}."
+        )
+    else:
+        await update.message.reply_text("Welcome back!")
     # Web URL with token
-    web_url = f"https://yourdjangowebsite.com/verify_token?token={token.token}"
+    # web_url = f"https://yourdjangowebsite.com/verify_token?token={token.token}&invite_code={user.invite_code}"
+    web_url = f"127.0.0.1:8000/verify_token?token={token.token}"
     # web_url = f"https://dd4b-5-75-197-252.ngrok-free.app/home/?telegram_id={telegram_id}&first_name={first_name}&last_name={last_name}&username={username}"
-
+    session.close()
     # "Lunch Game" button
     keyboard = [
         [InlineKeyboardButton("Lunch Game", url=f"{web_url}")]  # Game start link
@@ -82,12 +104,15 @@ async def start(update, context):
 
     # Send message with the button
     await update.message.reply_text(
-        "Click the button below to start the game:",
-        reply_markup=reply_markup
+        "This button is valid for 2 minutes. After 2 minutes,"
+        "you need to press /start again to receive a new button."
+        "Please do not forward this message.", reply_markup=reply_markup
     )
 
-    # Commit and close the session
-    session.close()
+
+        # Send the main menu
+        # await show_menu(update, context)
+
 
 
 # New function to display "Lunch Game" button when the user enters /game command
@@ -128,24 +153,23 @@ async def game(update, context):
 # New function for /invite
 async def invite(update, context):
     telegram_id = update.message.from_user.id
-    
-    # Database connection
-    session = Session()
-    
-    # Check if the user exists in the database
-    user = session.query(User).filter_by(telegram_id=telegram_id).first()
-    
-    if user:
-        # If the user exists in the database, send the invite code
-        invite_url = f"t.me/testpythonshahin_bot?start={user.invite_code}"
-        await update.message.reply_text(
-            f"Hello {user.first_name}!\nUse this link to invite your friends: {invite_url}"
-        )
-    else:
-        # If the user is not in the database, inform them to register first
-        await update.message.reply_text("You need to register first.")
 
-    session.close()
+    # Database connection
+    with Session() as session:
+        # Find the user
+        user = session.query(User).filter_by(telegram_id=telegram_id).first()
+
+        if user:
+            # Generate invite link
+            invite_url = f"t.me/testpythonshahin_bot?start={user.invite_code}"
+            await update.message.reply_text(
+                f"Hello {user.first_name}!\nShare this link to invite your friends:\n{invite_url}"
+            )
+        else:
+            await update.message.reply_text("You need to register first.")
+
+        session.close()
+
 
 async def handle_invite_code(update, context):
     telegram_id = update.message.from_user.id

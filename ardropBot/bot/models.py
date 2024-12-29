@@ -48,9 +48,9 @@ class User(Base, BaseModel):
     last_name = Column(String(100))
     username = Column(String(100))
     is_active = Column(Boolean, default=True)
-
     invite_code = Column(String(10), unique=True)
     inviter_id = Column(Integer, ForeignKey('telegram_bot_user.id'))
+    visit_site = Column(Boolean, default=False)
     
     inviter = relationship('User', remote_side=[id], backref='invitees')
 
