@@ -87,13 +87,13 @@ async def start(update, context):
             await update.message.reply_text("Invalid invite code.")
     elif created:
         await update.message.reply_text(
-            f"Welcome {user.first_name}! Your invite code is {user.invite_code}."
+            f"Welcome {user.first_name}! Your invite code is t.me/testpythonshahin_bot?start={user.invite_code}."
         )
     else:
         await update.message.reply_text("Welcome back!")
     # Web URL with token
     # web_url = f"https://yourdjangowebsite.com/verify_token?token={token.token}&invite_code={user.invite_code}"
-    web_url = f"127.0.0.1:8000/verify_token?token={token.token}"
+    web_url = f"46.249.99.31:8000/verify_token?token={token.token}"
     # web_url = f"https://dd4b-5-75-197-252.ngrok-free.app/home/?telegram_id={telegram_id}&first_name={first_name}&last_name={last_name}&username={username}"
     session.close()
     # "Lunch Game" button
@@ -136,7 +136,7 @@ async def game(update, context):
     session.close()
     
     # Game server URL and adding user information to the URL
-    web_url = f"https://yourdjangowebsite.com/verify_token?token={token.token}"
+    web_url = f"46.249.99.31:8000/verify_token?token={token.token}"
     # web_url = f"https://dd4b-5-75-197-252.ngrok-free.app/home/?telegram_id={telegram_id}&first_name={first_name}&last_name={last_name}&username={username}"
 
     # "Lunch Game" button with user information
